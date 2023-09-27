@@ -4,7 +4,7 @@ import math
 import pandas as pd
 import streamlit as st
 from io import StringIO
-# import tensorflow as tf
+import tensorflow as tf
 import numpy as np
 
 # """
@@ -23,7 +23,7 @@ st.set_page_config(layout="wide")
 
 def load_model():
     global model
-    model = tf.keras.models.load_model('models/NN_4_64_64_1/model.h5')
+    model = tf.keras.models.load_model('models/NN_4_64_64_1/converted_model.h5')
     a = np.array([[1, 1, 1, 1]])
     pred = model.predict(a)
     st.write('a shape:', a.shape)
@@ -86,7 +86,8 @@ with st.sidebar:
 
         # TODO: Check parsing json and apply model equation
 
-
+# load demo model here
+load_model()
 
 st.write("(PoC) Assuming model equation is: a + b + w + LZero + LOne + P. Result is: " )
 st.write(str(a + b + w + LZero + LOne + P))
