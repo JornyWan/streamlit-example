@@ -4,8 +4,16 @@ import math
 import pandas as pd
 import streamlit as st
 from io import StringIO
-import tensorflow as tf
+# import tensorflow as tf
 import numpy as np
+import streamlit_authenticator as stauth
+import hashlib
+from streamlit_modal import Modal
+
+import json
+ 
+
+
 
 # """
 # # Stress Intensity Factor Calculator (Proof of Concept)
@@ -51,17 +59,95 @@ def runUiSetUp():
             .block-container {
                 margin-top: -2rem;
                 
-            }
+            }    
     </style>
     """, unsafe_allow_html=True)
+
+
+
+# Login page
+# Load user data from the YAML file
+def load_credentials():
+    data = json.load(open("cred.json"))
+    return data['credentials']['registered_users']
+
+
+# Verify user credentials
+def verify_user(username, password):
+    creds = load_credentials()
+
+    if creds:
+        for cred in creds:
+            if cred['email'] == username:
+                if cred['password'] == password:
+                     return {
+                        "success": True,
+                        "message": "Logged in successfully!"
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": "Failed to login. Incorrect Password"
+                    }
+                
+    return {
+        "success": False,
+        "message": "Failed to login. Could not find an account with provided username. Please create an account!"
+    }
+
+
+def renderLogin(isLoggedIn):
+    # render login/logout/createAccount buttons
+    col1, col2 = st.columns(2, gap="medium")
+    with col1:
+        if not isLoggedIn:
+            loginModal = Modal("Authentication", key="loginModal", max_width=700)
+            runLogin = st.button("Login")
+
+            # scripts for login modal
+            if(runLogin):
+                loginModal.open()
+
+            if loginModal.is_open():
+                with loginModal.container():
+                    username = st.text_input("Username", key="username")
+                    password = st.text_input("Password", type="password")
+
+                    if st.button("Submit"):
+                        loginResult = verify_user(username, password)
+
+                        if loginResult['success']:
+                            st.success(loginResult['message'])
+                        else:
+                            st.error(loginResult['message'])
+
+        else: 
+            runLogout = st.button("Logout")
+            
+
+    with col2:
+        accountCreationModal = Modal("Create an account", key="accountCreationModal", max_width=700)
+        createAccount = st.button("Create an account")
+
+        if(createAccount):
+            accountCreationModal.open()
+
+        if accountCreationModal.is_open():
+            with accountCreationModal.container():
+                username = st.text_input("Username", key="username")
+                password = st.text_input("Password", type="password")
+                password = st.text_input("Retype Password", type="password")
+
+                if st.button("Create account"):
+                    st.success("Ok!!!")
+
+
+
 
 
 # add sideBar
 with st.sidebar:
     runUiSetUp()
-
-
-    # st.write("**Stress Intensity Factor Calculator (PoC)**")
 
     a = st.number_input("a (μm)", help="a; unit: μm", key="a")
     b = st.number_input("b (μm)", help="b; unit: μm", key="b")
@@ -84,14 +170,17 @@ with st.sidebar:
         dataframe = pd.read_json(uploaded_file)
         st.write(dataframe.to_json())
 
+
         # TODO: Check parsing json and apply model equation
 
 # load demo model here
-load_model()
+# load_model()
+
+
+renderLogin(False)
 
 st.write("(PoC) Assuming model equation is: a + b + w + LZero + LOne + P. Result is: " )
 st.write(str(a + b + w + LZero + LOne + P))
-
 
 col1, col2 = st.columns(2, gap="medium")
 with col1:
@@ -101,8 +190,9 @@ with col2:
    with st.container():
     st.components.v1.iframe(iframe_src_3d_url, scrolling=False)
 
+    
+
 
 # st.components.v1.iframe(iframe_src_3d_url, width=800, height = 600, scrolling=False)
 # st.components.v1.html(image_html_block, width=800, height=600, scrolling=False)
-
 
