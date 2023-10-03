@@ -7,12 +7,10 @@ from io import StringIO
 # import tensorflow as tf
 import numpy as np
 import streamlit_authenticator as stauth
-import hashlib
 from streamlit_modal import Modal
-
 import json
+import re     # for email address validation
  
-
 
 
 # """
@@ -25,8 +23,9 @@ import json
 model = None
 record_num = 0
 iframe_src_3d_url = "https://3dwarehouse.sketchup.com/embed/9658ccab-6ac3-4b89-a23f-635206942357"
+CRED_ENV_FILE_NAME = "cred.json"
 
-st.set_page_config(layout="wide")
+st.set_page_config("Stress Intensity Factor Calculator", layout="wide")
 
 
 def load_model():
@@ -66,15 +65,11 @@ def runUiSetUp():
 
 
 # Login page
-# Load user data from the YAML file
-def load_credentials():
-    data = json.load(open("cred.json"))
-    return data['credentials']['registered_users']
-
-
+# Load user data from the JSON file
 # Verify user credentials
 def verify_user(username, password):
-    creds = load_credentials()
+    data = json.load(open(CRED_ENV_FILE_NAME))
+    creds = data['credentials']['registered_users']
 
     if creds:
         for cred in creds:
@@ -94,6 +89,52 @@ def verify_user(username, password):
         "success": False,
         "message": "Failed to login. Could not find an account with provided username. Please create an account!"
     }
+
+
+def createUserAccount(email, name, password):
+    data = json.load(open(CRED_ENV_FILE_NAME))
+
+    data['credentials']['registered_users'].append({
+        'email': str(email), 
+        'name': str(name), 
+        'password': str(password), 
+        'models': []
+    })
+
+    print("after addition, data is ", data)
+
+    try:
+        with open(CRED_ENV_FILE_NAME, "w") as f:
+            f.write(json.dumps(data))
+            return True
+    except:
+        print("Error during writing to data.json")
+
+    return False
+
+
+def isValidEmail(email):
+    # This is a common and simple regex pattern for email validation. It checks for:
+    # 1. One or more alphanumeric characters (or .-_ characters).
+    # 2. Followed by an '@' symbol.
+    # 3. Followed again by one or more alphanumeric characters (or .-_ characters).
+    # 4. A period (.)
+    # 5. And finally, 2 to 6 alphanumeric characters. (To match common TLDs like .com, .org, .co.uk, etc.)
+    pattern = r"^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$"
+    
+    if re.match(pattern, email):
+        return True
+    return False
+
+
+def validateInput(input, type, minLength):
+    if len(input) < minLength:
+        return False
+
+    if type == "email": 
+        return isValidEmail(input)
+    
+    return True
 
 
 def renderLogin(isLoggedIn):
@@ -134,14 +175,30 @@ def renderLogin(isLoggedIn):
 
         if accountCreationModal.is_open():
             with accountCreationModal.container():
-                username = st.text_input("Username", key="username")
+                username = st.text_input("Username (Please use your email address)", key="username")
+                name = st.text_input("Name", key="name")
                 password = st.text_input("Password", type="password")
-                password = st.text_input("Retype Password", type="password")
+                passwordRetype = st.text_input("Retype Password", type="password")
 
                 if st.button("Create account"):
-                    st.success("Ok!!!")
+                    if not validateInput(username, "email", 5):
+                        st.error("Error: " + username + " is not a valid email address!")
+                        return
+                    
+                    if not validateInput(name, '', 5):
+                        st.error("Error: name must be longer than 5 characters!")
+                        return
 
+                    if not validateInput(password, '', 8):
+                        st.error("Error: password must be longer than 8 characters!")   
+                        return 
 
+                    if not passwordRetype == password:
+                        st.error("Error: " + username + " re-typed password must match password provided!")
+                        return
+
+                    if createUserAccount(username, name, password):
+                        st.success("Successfully created account for " + name + "! Your username is: " + username)
 
 
 
