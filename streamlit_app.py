@@ -1,15 +1,16 @@
-from collections import namedtuple
-import altair as alt
-import math
-import pandas as pd
 import streamlit as st
 from io import StringIO
+import os
+from decouple import config
+import json
+import re     # for email address validation
 # import tensorflow as tf
 import numpy as np
 import streamlit_authenticator as stauth
-from streamlit_modal import Modal
-import json
-import re     # for email address validation
+from streamlit_modal import Modal   # Used for creating popout modal
+from streamlit_cookies_manager import EncryptedCookieManager  # Using cookie to store session data
+
+from datetime import datetime, timedelta
  
 
 
@@ -19,13 +20,28 @@ import re     # for email address validation
 # """
 
 
-# Global variables and settings
+# Global variables, settings and initializations
 model = None
 record_num = 0
-iframe_src_3d_url = "https://3dwarehouse.sketchup.com/embed/9658ccab-6ac3-4b89-a23f-635206942357"
+SESSION_VALID_LENGTH = 7    # 7 days
 CRED_ENV_FILE_NAME = "cred.json"
-
+iframe_src_3d_url = "https://3dwarehouse.sketchup.com/embed/9658ccab-6ac3-4b89-a23f-635206942357"
 st.set_page_config("Stress Intensity Factor Calculator", layout="wide")
+
+# This should be on top of your script
+cookies = EncryptedCookieManager(
+    # This prefix will get added to all your cookie names.
+    # So that the app can avoid cookie name clashes with other apps on Streamlit Cloud
+    prefix = "stress-ai-",
+    # You should really setup a long COOKIES_PASSWORD secret if you're running on Streamlit Cloud.
+    password = config('COOKIES_PASSWORD')
+)
+
+if not cookies.ready():
+    # Wait for the component to load and send us current cookies.
+    st.stop()
+
+
 
 
 def load_model():
@@ -135,9 +151,40 @@ def validateInput(input, type, minLength):
         return isValidEmail(input)
     
     return True
+            
+
+def writeLoggedInUserToCookie(cookies, username, name):
+    # Save the value to cookie, this will get saved on next rerun automatically
+    cookies['logged_in_user_username'] = username
+    cookies['logged_in_users_name'] = name
+    cookies['session_expire_on'] = datetime.today() + timedelta(days = SESSION_VALID_LENGTH)
+    cookies.save()  # saving the cookies now, without a rerun
 
 
-def renderLogin(isLoggedIn):
+def getLoggedInUserFromCookie(cookies):
+    # Save the value to cookie, this will get saved on next rerun automatically
+    
+    username = cookies.get('logged_in_user_username')
+    name = cookies['logged_in_users_name']
+    session_expire_on = cookies.get('session_expire_on')
+
+    if username and session_expire_on:
+        sessionEndTime = datetime.strptime('2023-11-02 17:24:33.008281', '%Y-%m-%d %H:%M:%S.%f')
+        if sessionEndTime > datetime.now():
+            return {
+                'success': True,
+                'username': username,
+                'name': name
+            }
+    
+    return {
+        'success': False,
+        'username': username,
+        'name': name
+    }
+
+
+def renderLogin(isLoggedIn, cookies):
     # render login/logout/createAccount buttons
     col1, col2 = st.columns(2, gap="medium")
     with col1:
@@ -158,6 +205,7 @@ def renderLogin(isLoggedIn):
                         loginResult = verify_user(username, password)
 
                         if loginResult['success']:
+                            writeLoggedInUserToCookie(cookies, username, 'dummyName NEED TO FIX!!!')
                             st.success(loginResult['message'])
                         else:
                             st.error(loginResult['message'])
@@ -201,7 +249,6 @@ def renderLogin(isLoggedIn):
                         st.success("Successfully created account for " + name + "! Your username is: " + username)
 
 
-
 # add sideBar
 with st.sidebar:
     runUiSetUp()
@@ -215,26 +262,19 @@ with st.sidebar:
 
     uploaded_file = st.file_uploader("Upload your model here", key="user_custom_model", type = "json")
     if uploaded_file is not None:
-        # To convert to a string based IO:
-        stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
-        st.write(stringio)
-
         # To read file as string:
-        string_data = stringio.read()
-        st.write(string_data)
-
-        # Can be used wherever a "file-like" object is accepted:
-        dataframe = pd.read_json(uploaded_file)
-        st.write(dataframe.to_json())
+        data = json.load(uploaded_file)
+        st.write(data)
 
 
         # TODO: Check parsing json and apply model equation
 
 # load demo model here
 # load_model()
+st.write("Current cookies:", cookies)
 
-
-renderLogin(False)
+sessionData = getLoggedInUserFromCookie(cookies)
+renderLogin(sessionData['success'], cookies)
 
 st.write("(PoC) Assuming model equation is: a + b + w + LZero + LOne + P. Result is: " )
 st.write(str(a + b + w + LZero + LOne + P))
