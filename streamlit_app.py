@@ -4,7 +4,7 @@ import os
 from decouple import config
 import json
 import re     # for email address validation
-# import tensorflow as tf
+import tensorflow as tf
 import numpy as np
 import streamlit_authenticator as stauth
 from streamlit_modal import Modal   # Used for creating popout modal
@@ -41,7 +41,7 @@ if not cookies.ready():
     # Wait for the component to load and send us current cookies.
     st.stop()
 
-
+LOGGED_IN_USER_NAME = cookies.get('logged_in_users_name')
 
 
 def load_model():
@@ -81,29 +81,44 @@ def runUiSetUp():
 
 
 # Login page
-# Load user data from the JSON file
-# Verify user credentials
-def verify_user(username, password):
+
+def getCredByUsername(username):
     data = json.load(open(CRED_ENV_FILE_NAME))
     creds = data['credentials']['registered_users']
 
     if creds:
         for cred in creds:
             if cred['email'] == username:
-                if cred['password'] == password:
-                     return {
-                        "success": True,
-                        "message": "Logged in successfully!"
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "message": "Failed to login. Incorrect Password"
-                    }
+                return {
+                    "success": True,
+                    "credObj": cred
+                }
+  
                 
     return {
         "success": False,
-        "message": "Failed to login. Could not find an account with provided username. Please create an account!"
+    }
+
+# Load user data from the JSON file
+# Verify user credentials
+def verifyUser(username, password):
+    response = getCredByUsername(username)
+
+    if not response['success']:
+        return {
+            "success": False,
+            "message": "Failed to login. Could not find an account with provided username. Please create an account!"
+        }
+    
+    if response['credObj']['password'] == password: 
+        return {
+            "success": True,
+            "message": "Logged in successfully!"
+        }
+    
+    return {
+        "success": False,
+        "message": "Failed to login. Incorrect Password"
     }
 
 
@@ -151,40 +166,51 @@ def validateInput(input, type, minLength):
         return isValidEmail(input)
     
     return True
-            
 
-def writeLoggedInUserToCookie(cookies, username, name):
+
+def writeLoggedInUserToCookie(cookies, username):
     # Save the value to cookie, this will get saved on next rerun automatically
+    credResponse = getCredByUsername(username)
+    LOGGED_IN_USER_NAME = credResponse['credObj']['name'] if credResponse['success'] else ''
+
     cookies['logged_in_user_username'] = username
-    cookies['logged_in_users_name'] = name
-    cookies['session_expire_on'] = datetime.today() + timedelta(days = SESSION_VALID_LENGTH)
-    cookies.save()  # saving the cookies now, without a rerun
+    cookies['logged_in_users_name'] = LOGGED_IN_USER_NAME
+    cookies['session_expire_on'] = str(datetime.today() + timedelta(days = SESSION_VALID_LENGTH))
+    
+    # saving the cookies now, without a rerun
+    # cookies.save()
+    st.rerun()
+
+    
 
 
 def getLoggedInUserFromCookie(cookies):
     # Save the value to cookie, this will get saved on next rerun automatically
     
-    username = cookies.get('logged_in_user_username')
-    name = cookies['logged_in_users_name']
-    session_expire_on = cookies.get('session_expire_on')
+    try:
+        username = cookies.get('logged_in_user_username')
+        name = cookies.get('logged_in_users_name')
+        session_expire_on = cookies.get('session_expire_on')
 
-    if username and session_expire_on:
-        sessionEndTime = datetime.strptime('2023-11-02 17:24:33.008281', '%Y-%m-%d %H:%M:%S.%f')
-        if sessionEndTime > datetime.now():
-            return {
-                'success': True,
-                'username': username,
-                'name': name
-            }
+        if username and session_expire_on:
+            sessionEndTime = datetime.strptime('2023-11-02 17:24:33.008281', '%Y-%m-%d %H:%M:%S.%f')
+
+            if sessionEndTime > datetime.now():
+                return {
+                    'success': True,
+                    'username': username,
+                    'name': name
+                }
+            
+    except:
+        print("No cookies found!")
     
     return {
-        'success': False,
-        'username': username,
-        'name': name
+        'success': False
     }
 
 
-def renderLogin(isLoggedIn, cookies):
+def renderAuthModals(isLoggedIn, cookies):
     # render login/logout/createAccount buttons
     col1, col2 = st.columns(2, gap="medium")
     with col1:
@@ -202,17 +228,25 @@ def renderLogin(isLoggedIn, cookies):
                     password = st.text_input("Password", type="password")
 
                     if st.button("Submit"):
-                        loginResult = verify_user(username, password)
+                        loginResult = verifyUser(username, password)
 
                         if loginResult['success']:
-                            writeLoggedInUserToCookie(cookies, username, 'dummyName NEED TO FIX!!!')
+                            writeLoggedInUserToCookie(cookies, username)
                             st.success(loginResult['message'])
                         else:
                             st.error(loginResult['message'])
 
         else: 
             runLogout = st.button("Logout")
+            if runLogout:
+                LOGGED_IN_USER_NAME = ''
+                cookies['logged_in_user_username'] = ''
+                cookies['logged_in_users_name'] = ''
+                cookies['session_expire_on'] = ''
+                cookies.save()
+                st.rerun()
             
+
 
     with col2:
         accountCreationModal = Modal("Create an account", key="accountCreationModal", max_width=700)
@@ -270,26 +304,31 @@ with st.sidebar:
         # TODO: Check parsing json and apply model equation
 
 # load demo model here
-# load_model()
-st.write("Current cookies:", cookies)
+load_model()
 
 sessionData = getLoggedInUserFromCookie(cookies)
-renderLogin(sessionData['success'], cookies)
+print(sessionData)
+
+if LOGGED_IN_USER_NAME:
+    st.title("Hi " + LOGGED_IN_USER_NAME + "!")
+else:
+    st.title("Please log in!")
+
+renderAuthModals(sessionData['success'], cookies)
 
 st.write("(PoC) Assuming model equation is: a + b + w + LZero + LOne + P. Result is: " )
 st.write(str(a + b + w + LZero + LOne + P))
 
 col1, col2 = st.columns(2, gap="medium")
 with col1:
-   st.image("https://hint1412.github.io/XLiu.github.io/SIF/images/Notched_cantilever_sketch.png")
+   st.image("./public/Notched_cantilever_sketch.png")
 
 with col2:
    with st.container():
     st.components.v1.iframe(iframe_src_3d_url, scrolling=False)
 
-    
+st.write("*****DEBUG: Current cookies:", cookies)
 
 
 # st.components.v1.iframe(iframe_src_3d_url, width=800, height = 600, scrolling=False)
-# st.components.v1.html(image_html_block, width=800, height=600, scrolling=False)
 
