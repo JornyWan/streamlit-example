@@ -1,6 +1,6 @@
 import streamlit as st
-from io import StringIO
-import os
+# from io import StringIO
+# import os
 from decouple import config
 import json
 import re     # for email address validation
@@ -11,7 +11,8 @@ from streamlit_modal import Modal   # Used for creating popout modal
 from streamlit_cookies_manager import EncryptedCookieManager  # Using cookie to store session data
 
 from datetime import datetime, timedelta
- 
+import mongoAuthHelper
+
 
 
 # """
@@ -42,6 +43,27 @@ if not cookies.ready():
     st.stop()
 
 LOGGED_IN_USER_NAME = cookies.get('logged_in_users_name')
+
+
+
+
+# # Test the function
+# result = mongoAuthHelper.update_document_by_email(
+#     "example@email.com", "Updated Name2222", "updated_password", ["updated_model1", "updated_model2"]
+# )
+# print(f"Number of documents updated: {updated_count}")
+
+# # Test the function
+# result = mongoAuthHelper.insert_document("example@email.com", "Example NameSS", "example_password", ["model1", "model2"])
+# print(f"Inserted document with ID: {inserted_id}")
+
+
+# Test the function
+# result = mongoAuthHelper.fetch_document_by_email("dev@iowt-now.com")
+# st.write(result['document'])
+
+
+
 
 
 def load_model(a,b,w,l0,l1,p):
