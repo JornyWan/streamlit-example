@@ -14,7 +14,6 @@ from datetime import datetime, timedelta
 import mongoAuthHelper
 
 
-
 # """
 # # Stress Intensity Factor Calculator (Proof of Concept)
 
@@ -25,7 +24,6 @@ import mongoAuthHelper
 model = None
 record_num = 0
 SESSION_VALID_LENGTH = 7    # 7 days
-CRED_ENV_FILE_NAME = "cred.json"
 iframe_src_3d_url = "https://3dwarehouse.sketchup.com/embed/9658ccab-6ac3-4b89-a23f-635206942357"
 st.set_page_config("Stress Intensity Factor Calculator", layout="wide")
 
@@ -53,14 +51,7 @@ LOGGED_IN_USER_NAME = cookies.get('logged_in_users_name')
 # )
 # print(f"Number of documents updated: {updated_count}")
 
-# # Test the function
-# result = mongoAuthHelper.insert_document("example@email.com", "Example NameSS", "example_password", ["model1", "model2"])
-# print(f"Inserted document with ID: {inserted_id}")
 
-
-# Test the function
-# result = mongoAuthHelper.fetch_document_by_email("dev@iowt-now.com")
-# st.write(result['document'])
 
 
 
@@ -142,23 +133,25 @@ def runUiSetUp():
 
 
 # Login page
-
 def getCredByUsername(username):
-    data = json.load(open(CRED_ENV_FILE_NAME))
-    creds = data['credentials']['registered_users']
+    data = mongoAuthHelper.fetch_document_by_email(username)
+    if 'document' not in data:
+        return {
+            "success": False,
+        }
+    
+    cred = data['document']
 
-    if creds:
-        for cred in creds:
-            if cred['email'] == username:
-                return {
-                    "success": True,
-                    "credObj": cred
-                }
-  
-                
+    if cred['email'] == username:
+        return {
+            "success": True,
+            "credObj": cred
+        }
+
     return {
         "success": False,
     }
+
 
 # Load user data from the JSON file
 # Verify user credentials
@@ -171,7 +164,7 @@ def verifyUser(username, password):
             "message": "Failed to login. Could not find an account with provided username. Please create an account!"
         }
     
-    if response['credObj']['password'] == password: 
+    if response['credObj']['password'] == password:
         return {
             "success": True,
             "message": "Logged in successfully!"
@@ -182,27 +175,6 @@ def verifyUser(username, password):
         "message": "Failed to login. Incorrect Password"
     }
 
-
-def createUserAccount(email, name, password):
-    data = json.load(open(CRED_ENV_FILE_NAME))
-
-    data['credentials']['registered_users'].append({
-        'email': str(email), 
-        'name': str(name), 
-        'password': str(password), 
-        'models': []
-    })
-
-    print("after addition, data is ", data)
-
-    try:
-        with open(CRED_ENV_FILE_NAME, "w") as f:
-            f.write(json.dumps(data))
-            return True
-    except:
-        print("Error during writing to data.json")
-
-    return False
 
 
 def isValidEmail(email):
@@ -340,8 +312,11 @@ def renderAuthModals(isLoggedIn, cookies):
                         st.error("Error: " + username + " re-typed password must match password provided!")
                         return
 
-                    if createUserAccount(username, name, password):
-                        st.success("Successfully created account for " + name + "! Your username is: " + username)
+                    result = mongoAuthHelper.insert_document(str(username), str(name), str(password), [])
+                    if result["success"]:
+                        st.success(result["message"])
+                    else:
+                        st.error(result["message"])
 
 
 # add sideBar

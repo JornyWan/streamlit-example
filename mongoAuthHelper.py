@@ -62,7 +62,8 @@ def insert_document(email, name, password, models):
     # Return the ID of the inserted document
     return {
         "success": True,
-        "message": "sucessfully created user account with: " + email + " ID: " + result.inserted_id
+        "message": "Sucessfully created user account with: " + email
+        # " ID: " + str(result.inserted_id)
     }
 
 
