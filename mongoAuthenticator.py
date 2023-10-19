@@ -42,7 +42,7 @@ def insert_document(email, name, password, models):
     if document:
         return {
             "success": False,
-            "message": "found existing document with email: " + email
+            "message": "Found existing user with email: " + email
         }
 
     # Create a document with the specified attributes
