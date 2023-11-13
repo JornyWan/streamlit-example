@@ -28,24 +28,26 @@ def pad(n, width, z='0'):
     return (str(z) * (width - len(str(n))) + str(n))
 
 
-def display_values(a, b, w, l0, l1, P, K_o, record_num):
+def getDisplayValues(a, b, w, l0, l1, P, K_o, record_num):
+    result = {"success": False}
+    
     print(type(a), type(b), type(w), type(l0), type(l1), type(P), type(K_o))
     try:
         K_o = float(K_o)
         str_output = ("a={:.3f}, b={:.3f}, w={:.3f}, L0={:.3f}, L1={:.3f}, P={:.3f}, KI={:.3f}".format(a, b, w, l0, l1, P, K_o))
         
-        
-        st.write(str_output)
-        st.write('Empirical:  {:.3f}'.format(emp2(a, b, w, l1, P)))
+        result["str_output"] = str_output
+        result["empirical"] = '{:.3f}'.format(emp2(a, b, w, l1, P))
+        result["ki_value"] = '{:.3f}'.format(K_o)
         
         if (0.1 <= a/b <= 0.8 and 1.0 <= w/b <= 3.0 and
             0.1 <= l0/b <= 0.4 and 2.0 <= l1/b <= 5.0):
-            st.markdown(':smile: Interpolation')
-            st.write("Record {}:  {} (Interpolation)".format(pad(record_num, 3), str_output))
+            result["type"] = ":) Interpolation"
         else:
-            st.markdown(':frowning_face: Extrapolation')
-            st.write("Record {}:  {} (Extrapolation)".format(pad(record_num, 3), str_output))
+            result["type"] = ":( Extrapolation"
         
-        st.write("KI Value: {:.3f}".format(K_o))
+        result["success"] = True
+        return result
     except:
-        st.write("invalid input!")
+        print("invalid input!")
+        return result

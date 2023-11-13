@@ -1,0 +1,2 @@
+[server]
+maxUploadSize = 10  # Limit file uploads to 10 MB

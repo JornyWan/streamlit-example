@@ -12,3 +12,25 @@ def runUiSetUp(showLogo):
     </style>
 
     """, unsafe_allow_html=True)
+
+
+def loadSourceCodeWidget():
+    PIS_SOURCE_CODE = "<h3>Pillar Indentation Splitting: <a href=\"https://github.com/hint1412/XLiu.github.io/tree/master/SIF/\">Source Code</a></h3>"
+    st.markdown(PIS_SOURCE_CODE, unsafe_allow_html=True)
+
+    PPCC_SOURCE_CODE = "<h3>Pre-notched Pentagonal Cross-section Cantilevers: <a href=\"https://github.com/hint1412/XLiu.github.io/tree/master/SIF/\">Source Code</a></h3>" 
+    st.markdown(PPCC_SOURCE_CODE, unsafe_allow_html=True)
+
+
+def updateResult(modelResult):
+    resultsTxtAreaKey = 'resultsTxtArea'
+    
+    if resultsTxtAreaKey not in st.session_state:
+        st.session_state[resultsTxtAreaKey] = "Please provide your inputs"
+                
+    if not modelResult["success"]:
+        return
+
+    st.session_state[resultsTxtAreaKey] = "Inputs: \n" + modelResult["str_output"] + "\n\nOutputs:\n" + "KI: " + modelResult["ki_value"] + "\n" + modelResult["type"]
+
+    st.text_area("Results:", value=st.session_state[resultsTxtAreaKey], key=resultsTxtAreaKey, height=200, disabled=True)

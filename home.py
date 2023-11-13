@@ -10,13 +10,13 @@ from streamlit_cookies_manager import EncryptedCookieManager  # Using cookie to 
 import authHelper
 import uiHelper
 import modelSimulator
+import modelManager
 
 
 # """
 # # Stress Intensity Factor Calculator (Proof of Concept)
 
 # """
-
 
 # Global variables, settings and initializations
 record_num = 0
@@ -38,8 +38,10 @@ if not cookies.ready():
 
 LOGGED_IN_USER_NAME = cookies.get('logged_in_users_name')
 
+sessionData = authHelper.getLoggedInUserFromCookie(cookies)
+print(sessionData)
 
-    
+
 # add sideBar
 with st.sidebar:
     uiHelper.runUiSetUp(True)
@@ -50,46 +52,58 @@ with st.sidebar:
     LZero = st.number_input("L0 (μm)", help="L0; unit: μm", key="l_zero")
     LOne = st.number_input("L1 (μm)", help="L1; unit: μm", key="l_one")
     P = st.number_input("P (mN)", help="P; unit: mN", key="p")
+    
+    # hashedUserName = "NN_4_16_8_1_test"
 
-    uploaded_file = st.file_uploader("Upload your model here", key="user_custom_model", type = "json")
-    if uploaded_file is not None:
-        # To read file as string:
-        data = json.load(uploaded_file)
-        st.write(data)
+    if LOGGED_IN_USER_NAME: 
+        hashedUserName = authHelper.hashStringMd5(LOGGED_IN_USER_NAME)
 
+        options = ["Default"]
+        options.extend(modelManager.getAvailableModels(hashedUserName))
+        options.append("Upload New")
 
+        # Create the choice list with a select box
+        selected_option = st.selectbox("Choose an option:", options)
+        # Do something with the selected option
+        st.write(f"You selected: {selected_option}")
 
-sessionData = authHelper.getLoggedInUserFromCookie(cookies)
-print(sessionData)
+        if selected_option == "Upload New":
+            uploaded_file = st.file_uploader("Upload your model here", key="user_custom_model", type = "h5")
+            if uploaded_file is not None:
+                modelManager.storeUserModel(hashedUserName, "test data", uploaded_file.name)
+                st.success("Sucessfully uploaded model: " + uploaded_file.name + "! You can now test it in our web app!")
+
 
 if LOGGED_IN_USER_NAME:
     st.header("Hi " + LOGGED_IN_USER_NAME + "!", divider='rainbow')
 else:
     st.header("Hi guest! Please consider logging in!", divider='rainbow')
 
-
+uiHelper.loadSourceCodeWidget()
 
 col1, col2 = st.columns(2, gap="medium")
 with col1:
-   st.image("./public/Notched_cantilever_sketch.png")
+    st.image("./public/Notched_cantilever_sketch.png")
 
 with col2:
-   with st.container():
-    st.components.v1.iframe(iframe_src_3d_url, scrolling=False)
+    with st.container():
+        st.components.v1.iframe(iframe_src_3d_url, scrolling=False)
 
 
-# load pre-defined model here
+# load pre-defined default model here
 st.header("Model Simulation", divider='rainbow')
+model = tf.keras.models.load_model('./models/NN_4_64_64_1/converted_model.h5')
 
-model = tf.keras.models.load_model('models/NN_4_64_64_1/converted_model.h5')
+modelResult = {"success": False}
+
 if b == 0:
-   st.write('Please input parameters!')
+   st.text_area("Results:", value="Please input parameters!", height=200, disabled=True)
 else:
-    kop = modelSimulator.KP(model,a,b,w,LZero,LOne)
-    ki = kop * P
-    st.write('KI:', ki)
+    ki = modelSimulator.KP(model,a,b,w,LZero,LOne) * P
+    modelResult = modelSimulator.getDisplayValues(a, b, w, LZero, LOne, P, ki, record_num)
+    
+    uiHelper.updateResult(modelResult)
 
-    modelSimulator.display_values(a, b, w, LZero, LOne, P, ki, record_num)
 
 
 # st.components.v1.iframe(iframe_src_3d_url, width=800, height = 600, scrolling=False)

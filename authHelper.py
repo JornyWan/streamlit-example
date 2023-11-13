@@ -6,6 +6,7 @@ import re     # for email address validation
 import tensorflow as tf
 import numpy as np
 import streamlit_authenticator as stauth
+import hashlib
 from streamlit_modal import Modal   # Used for creating popout modal
 from streamlit_cookies_manager import EncryptedCookieManager  # Using cookie to store session data
 
@@ -14,6 +15,19 @@ import mongoAuthenticator
 
 
 SESSION_VALID_LENGTH = 7    # 7 days
+
+
+
+
+def hashStringMd5(input_string):
+    # Create a new MD5 hash object
+    hasher = hashlib.md5()
+
+    # Update the hasher with the bytes of the input string
+    hasher.update(input_string.encode())
+
+    # Return the hexadecimal representation of the digest
+    return hasher.hexdigest()
 
 
 # Login page
